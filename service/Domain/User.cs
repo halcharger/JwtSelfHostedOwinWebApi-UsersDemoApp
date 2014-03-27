@@ -21,8 +21,9 @@ namespace service.Domain
                 new Claim(ClaimTypes.Role, user.Role), 
                 new Claim(ClaimTypes.Sid, user.Id.ToString()), 
                 new Claim(ClaimTypes.Upn, user.Username), 
-                new Claim(ClaimTypes.GivenName, user.Name)
-            });
+                new Claim(ClaimTypes.Name, user.Name)
+            }, 
+            "JSON Web token authentication");
         }
     }
 }
