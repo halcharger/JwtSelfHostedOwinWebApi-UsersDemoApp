@@ -1,5 +1,6 @@
 ﻿using System.Web.Http;
 using Owin;
+using service.Handlers;
 
 namespace service
 {
@@ -12,6 +13,7 @@ namespace service
             // Configure Web API for self-host. 
             var config = new HttpConfiguration();
             config.MapHttpAttributeRoutes();
+            config.MessageHandlers.Add(new JwtAuthenticationMessageHandler());
             config.EnsureInitialized();
 
             appBuilder
