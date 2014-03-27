@@ -1,4 +1,5 @@
 ﻿using System.Web.Http;
+using Microsoft.Owin.Cors;
 using Owin;
 using service.Handlers;
 
@@ -17,6 +18,7 @@ namespace service
             config.EnsureInitialized();
 
             appBuilder
+                .UseCors(CorsOptions.AllowAll)
                 .UseWelcomePage("/test")
                 .UseWebApi(config);
 
