@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Web.Http;
 using System.Web.Http.Results;
+using Newtonsoft.Json;
 using service.Domain;
 using service.Handlers;
 
@@ -11,38 +12,6 @@ namespace service
 {
     public class EndpointsController : ApiController
     {
-        //not thread safe I know!!! for demo purposes!!!
-        protected static List<FullUser> UsersStore = new List<FullUser>(new[]
-        {
-            new FullUser
-            {
-                Id = 1,
-                Name = "Name1",
-                Username = "Username1",
-                Email = "email1@gmail.com",
-                Role = "user",
-                Password = "password1"
-            },
-            new FullUser
-            {
-                Id = 2,
-                Name = "Name2",
-                Username = "Username2",
-                Email = "email2@gmail.com",
-                Role = "admin",
-                Password = "password2"
-            },
-            new FullUser
-            {
-                Id = 3,
-                Name = "Name3",
-                Username = "Username3",
-                Email = "email3@gmail.com",
-                Role = "user",
-                Password = "password3"
-            }
-        });
-
         [HttpPost, Route("api/register")]
         public string Register()
         {
@@ -52,9 +21,9 @@ namespace service
         [HttpPost, Route("api/authenticate")]
         public IHttpActionResult Authenticate(AuthenticateUser user)
         {
-            var usr = (User)UsersStore.SingleOrDefault(u => u.Username == user.Username && u.Password == user.Password);
+            var usr = (User)Storage.Users.SingleOrDefault(u => u.Username == user.Username && u.Password == user.Password);
 
-            if (usr == null) return new UnauthorizedResult();
+            if (usr == null) return new InternalServerErrorResult("Invalid username or password.");
 
             var jwt = JwtAuthenticationMessageHandler.CreateJWT(usr);
             return Ok(new Authenticated {user = usr, token = jwt});
@@ -65,21 +34,34 @@ namespace service
         Authorize]
         public IHttpActionResult Users()
         {
-            return Ok(UsersStore.Cast<User>().ToList());
+            return Ok(Storage.Users.Cast<User>().ToList());
         }
 
         [HttpPost, 
         Route("api/secure/saveuser"),
         Authorize]
-        public string SaveUser()
+        public IHttpActionResult SaveUser(User user)
         {
-            return "this is the save user endpoint";
+            var errors = new UserValidator().ValidateUser(user);
+
+            if (errors.Any())
+                return new InternalServerErrorResult(errors);
+
+            var userToUpdate = Storage.Users.SingleOrDefault(u => u.Id == user.Id);
+            
+            if (userToUpdate == null) return Ok();
+            
+            userToUpdate.Name = user.Name;
+            userToUpdate.Username = user.Username;
+            userToUpdate.Email = user.Email;
+
+            return Ok();
         }
 
         [HttpPost, 
         Route("api/secure/udpatepassword"),
         Authorize(Roles = "admin")]
-        public string UpdatePassword()
+        public string UpdatePassword(PasswordUpdate passwordUpdate)
         {
             return "this is the update password endpoint";
         }
@@ -87,7 +69,7 @@ namespace service
         [HttpPost, 
         Route("api/secure/updaterole"),
         Authorize(Roles = "admin")]
-        public string UpdateRole()
+        public string UpdateRole(RoleUpdate roleUpdate)
         {
             return "this is the update role endpoint";
         }
@@ -98,5 +80,11 @@ namespace service
         public UnauthorizedResult() : base(new HttpResponseMessage(HttpStatusCode.Unauthorized))
         {
         }
+    }
+
+    public class InternalServerErrorResult : ResponseMessageResult
+    {
+        public InternalServerErrorResult(string error) : base(new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent(JsonConvert.SerializeObject(new{error}))}) { }
+        public InternalServerErrorResult(IEnumerable<Error> errors) : base(new HttpResponseMessage(HttpStatusCode.InternalServerError){Content = new StringContent(JsonConvert.SerializeObject(errors))}) { }
     }
 } ;
